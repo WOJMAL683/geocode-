@@ -1,0 +1,2172 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Edytor Lokalizacji</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css"/>
+    <style>
+        #map {
+            height: calc(100vh - 135px);
+            min-height: 400px;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+        input, textarea, button {
+           font-family: inherit;
+        }
+        .main-layout {
+            display: flex;
+            height: 100vh;
+        }
+        .panel {
+            width: 35%;
+            min-width: 320px;
+            max-width: 500px;
+            box-sizing: border-box;
+            height: 100vh;
+            overflow-y: auto;
+            border-right: 1px solid #ddd;
+            background: #fff;
+            padding-left: 12px;
+            padding-right: 12px;
+        }
+        #map {
+            flex: 1 1 0;
+            height: 100vh;
+            min-width: 0;
+        }
+
+        button {
+            font-size: 15px;
+            /* Możesz też dodać np. font-weight: bold; jeśli chcesz pogrubić */
+        }
+
+        .controls { margin: 10px 0; }
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .floating-label {
+            flex: 1;
+            position: relative;
+        }
+
+        .floating-label input {
+            padding: 4px 8px 4px 8px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            outline: none;
+            background: none;
+        }
+        .floating-label textarea {
+            padding: 4px 8px 4px 8px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            outline: none;
+            background: none;
+            min-height: 0;
+            height: auto;
+            resize: none;
+        }
+        .floating-label textarea:focus + label,
+        .floating-label textarea:not(:placeholder-shown) + label,
+        .floating-label textarea:not([value=""]) + label {
+            top: -10px;
+            left: 8px;
+            font-size: 13px;
+            color: #333;
+            background: #fff;
+            z-index: 1;
+        }
+
+        .floating-label label {
+            position: absolute;
+            left: 10px;
+            top: 14px;
+            color: #888;
+            font-size: 15px;
+            background: #fff;
+            transition: 0.2s;
+            pointer-events: none;
+            padding: 0 4px;
+        }
+        .floating-label input:focus + label,
+        .floating-label input:not(:placeholder-shown) + label,
+        .floating-label input:not([value=""]) + label {
+            top: -10px;
+            left: 6px;
+            font-size: 13px;
+            color: #333;
+            background: #fff;
+        }
+        .input-sizer {
+            font-size: 15px;
+            font-family: inherit;
+            font-weight: normal;
+            letter-spacing: inherit;
+            white-space: pre;
+            visibility: hidden;
+            position: absolute;
+            left: 0;
+            top: 0;
+            box-sizing: content-box;
+        }
+
+        .full-width {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .half-width {
+            width: 50%;
+            box-sizing: border-box;
+        }
+
+        input[id^="original"], textarea[id='inputFileName'] {
+            border: none;
+            outline: none;
+            background: none;
+        }
+
+        .controls {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            background: #fafbfc;
+        }
+
+        h4 {
+            margin-top: 8px;
+        }
+
+        #info {
+            margin-left: 0 !important;
+        }
+
+        #originalName {
+            border: none !important;
+            outline: none !important;
+            background: none;
+        }
+
+        .inline-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .inline-label label {
+            margin-bottom: 5px;
+            margin-top: 5px;
+            font-size: 15px;
+            pointer-events: none;
+        }
+        .inline-label input,
+        .inline-label textarea {
+            flex: 1;
+            font-size: 15px;
+            min-height: 0;
+            height: auto;
+            resize: none;
+        }
+
+        #comments {
+           border: 1px solid #ccc;
+        }
+
+        #nameEdit,
+        #streetEdit,
+        #houseEdit,
+        #cityEdit,
+        #postCodeEdit,
+        #comments {
+            background: #fff !important;
+        }
+
+        .margin {
+             margin-bottom: 10px;
+        }
+
+        .nav-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav-left, .nav-right {
+            display: flex;
+            gap: 8px;
+        }
+
+        #inputFileName {
+           padding: 10px 8px 4px 8px;
+        }
+    
+/* Rounded inputs & textareas */
+textarea, input {
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+}
+/* Bigger Load/Export buttons */
+#loadBtn, #exportBtn {
+  padding: 12px 18px;
+  font-weight: 600;
+  border-radius: 10px;
+}
+/* Leaflet Draw toolbar bigger & custom marker icon */
+.leaflet-draw-toolbar a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #cfcfcf;
+}
+.leaflet-draw-toolbar a:hover { box-shadow: 0 0 0 2px rgba(0,0,0,0.05) inset; }
+.leaflet-draw-toolbar .leaflet-draw-draw-marker {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5'><path fill='black' d='M12 22s7-7.21 7-12.1C19 6.02 15.87 3 12 3S5 6.02 5 9.9C5 14.79 12 22 12 22z'/><circle cx='12' cy='10' r='3.2' fill='white'/></svg>");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 24px 24px;
+}
+
+
+/* Dark Mode */
+body, html {
+  background-color:#1e1e1e !important;
+  color:#e0e0e0 !important;
+}
+.panel {
+  background:#2c2c2c !important;
+  border-right:1px solid #444 !important;
+}
+.controls {
+  background:#262626 !important;
+  border:1px solid #3a3a3a !important;
+}
+h2,h4,label { color:#d0d0d0 !important; }
+#info { color:#f0f0f0 !important; }
+
+/* Inputs base (do not override color so states still show) */
+textarea, input {
+  background:#2e2e2e !important;
+  border:1px solid #555 !important;
+  border-radius:8px;
+  padding:8px 12px;
+  color:inherit; /* use state color when applied */
+}
+textarea:focus, input:focus {
+  background:#3a3a3a !important;
+  border-color:#888 !important;
+  outline:none !important;
+}
+
+/* Buttons */
+button {
+  background:#3a3a3a !important;
+  color:#fff !important;
+  border:1px solid #666 !important;
+  border-radius:8px !important;
+}
+button:hover { background:#4a4a4a !important; }
+
+/* Load/Export bigger */
+#loadBtn, #exportBtn {
+  padding:14px 22px !important;
+  font-size:16px !important;
+  font-weight:600 !important;
+  border-radius:10px !important;
+  box-shadow:0 4px 10px rgba(0,0,0,.35);
+}
+
+/* Leaflet Draw toolbar dark */
+.leaflet-draw-toolbar a {
+  width:44px !important;
+  height:44px !important;
+  line-height:44px !important;
+  border-radius:10px !important;
+  background:#333 !important;
+  border:1px solid #555 !important;
+}
+.leaflet-draw-toolbar a:hover { background:#444 !important; border-color:#777 !important; }
+
+
+/* Editable fields with light gray background */
+#nameEdit, #streetEdit, #houseEdit, #cityEdit, #postCodeEdit, #comments {
+  background: #e0e0e0 !important;
+  color: #111;
+  border: 1px solid #555 !important;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+#nameEdit:focus, #streetEdit:focus, #houseEdit:focus, #cityEdit:focus, #postCodeEdit:focus, #comments:focus {
+  background: #f0f0f0 !important;
+  border-color: #888 !important;
+  outline: none !important;
+}
+
+
+/* --- ARROWS FIX (safe) --- */
+/* Make left/right arrows bigger and more prominent */
+#prevBtn, #nextBtn {
+  font-size: 26px !important;
+  padding: 14px 22px !important;
+  border-radius: 10px !important;
+  background: #3a3a3a !important;
+  border: 1px solid #666 !important;
+}
+#prevBtn:hover, #nextBtn:hover {
+  background: #4a4a4a !important;
+}
+
+/* Hide Up/Down arrow buttons without removing them (keeps JS intact) */
+#gotoPrevBtn, #gotoBtn {
+  display: none !important;
+}
+
+
+/* Bigger square Save button */
+#saveBtn {
+  font-size: 18px !important;
+  font-weight: bold !important;
+  width: 80px !important;
+  height: 80px !important;
+  border-radius: 12px !important;
+  background: linear-gradient(135deg, #388e3c, #2e7d32) !important;
+  color: #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: column !important;
+}
+#saveBtn img {
+  width: 28px !important;
+  height: 28px !important;
+  margin: 0 0 6px 0 !important;
+}
+#saveBtn:hover {
+  background: linear-gradient(135deg, #43a047, #388e3c) !important;
+}
+
+
+/* Align Save button to the far right */
+/* Group left-side buttons in a row */
+.inline-label.controls-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+}
+#saveBtn {
+  margin-left: auto !important;
+}
+#saveBtn {
+  margin-left: auto !important;
+}
+
+
+/* Hide polyline and polygon buttons */
+.leaflet-draw-toolbar .leaflet-draw-draw-polyline,
+.leaflet-draw-toolbar .leaflet-draw-draw-polygon {
+  display: none !important;
+}
+
+/* Force custom red pin icon for marker button */
+.leaflet-draw-toolbar .leaflet-draw-draw-marker a {
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 10px !important;
+  background: #333 !important;
+  border: 1px solid #555 !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='red' d='M12 22s7-7.21 7-12.1C19 6.02 15.87 3 12 3S5 6.02 5 9.9C5 14.79 12 22 12 22z'/><circle cx='12' cy='10' r='3.2' fill='white'/></svg>") !important;
+  background-size: 28px 28px !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
+
+/* HIDE polyline & polygon anchors (not LIs) */
+.leaflet-draw-toolbar a.leaflet-draw-draw-polyline,
+.leaflet-draw-toolbar a.leaflet-draw-draw-polygon {
+  display: none !important;
+}
+
+/* BIG red pin for the marker tool (target the ANCHOR directly) */
+.leaflet-draw-toolbar a.leaflet-draw-draw-marker {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 12px !important;
+  background-color: #333 !important;
+  border: 1px solid #555 !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='red' d='M12 22s7-7.21 7-12.1C19 6.02 15.87 3 12 3S5 6.02 5 9.9C5 14.79 12 22 12 22z'/><circle cx='12' cy='10' r='3.2' fill='white'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: 38px 38px !important;
+  line-height: 64px !important; /* match height */
+}
+
+/* Kill any built-in sprite and pseudo overlay */
+.leaflet-draw-toolbar a.leaflet-draw-draw-marker::before {
+  content: none !important;
+}
+
+
+/* Normalize top toolbar buttons height */
+.controls button {
+  height: 48px !important;
+  line-height: 48px !important;
+  padding: 0 16px !important;
+  font-size: 14px !important;
+}
+
+
+/* Compact small buttons */
+.controls button:not(#saveBtn) {
+  height: 36px !important;
+  line-height: 36px !important;
+  padding: 0 12px !important;
+  font-size: 13px !important;
+}
+.controls button:not(#saveBtn) img {
+  width: 16px !important;
+  height: 16px !important;
+  margin-right: 4px !important;
+  vertical-align: middle !important;
+}
+
+/* Big Save button remains emphasized */
+#saveBtn {
+  font-size: 16px !important;
+  font-weight: bold !important;
+  width: 80px !important;
+  height: 80px !important;
+  border-radius: 12px !important;
+  background: linear-gradient(135deg, #388e3c, #2e7d32) !important;
+  color: #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: column !important;
+}
+#saveBtn img {
+  width: 32px !important;
+  height: 32px !important;
+  margin: 0 0 6px 0 !important;
+}
+
+
+/* Extra compact buttons next to Save */
+.inline-label.controls-row button:not(#saveBtn) {
+  height: 30px !important;
+  line-height: 30px !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+}
+.inline-label.controls-row button:not(#saveBtn) img {
+  width: 14px !important;
+  height: 14px !important;
+  margin-right: 3px !important;
+}
+
+
+/* Fix Save button icon alignment */
+#saveBtn {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+#saveBtn img {
+  width: 28px !important;
+  height: 28px !important;
+  margin: 0 0 4px 0 !important;
+  display: block !important;
+}
+
+/* Compact grouping for side buttons next to Save */
+.inline-label.controls-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 4px !important; /* tighter spacing */
+}
+.inline-label.controls-row button:not(#saveBtn) {
+  height: 28px !important;
+  line-height: 28px !important;
+  padding: 0 8px !important;
+  font-size: 12px !important;
+  margin: 0 !important; /* remove extra margins */
+}
+.inline-label.controls-row button:not(#saveBtn) img {
+  width: 14px !important;
+  height: 14px !important;
+  margin-right: 2px !important;
+}
+
+
+/* Fine-tune Save button alignment */
+#saveBtn {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 6px !important;
+}
+#saveBtn img {
+  width: 28px !important;
+  height: 28px !important;
+  margin: 2px 0 4px 0 !important; /* small top margin to center better */
+  display: block !important;
+}
+
+/* Compact grouping for side buttons */
+.inline-label.controls-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start !important; /* align higher */
+  gap: 2px !important; /* minimal spacing */
+}
+.inline-label.controls-row button:not(#saveBtn) {
+  height: 28px !important;
+  line-height: 28px !important;
+  padding: 0 6px !important;
+  font-size: 12px !important;
+  margin: 0 !important;
+}
+.inline-label.controls-row button:not(#saveBtn) img {
+  width: 14px !important;
+  height: 14px !important;
+  margin-right: 2px !important;
+}
+
+
+/* --- Tighten spacing between the two rows (no HTML changes) --- */
+#poiData .inline-label.controls-row {
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  gap: 2px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Remove any spacer between rows */
+#poiData .margin {
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+/* Make ANY following controls-row sit right under the first one */
+#poiData .inline-label.controls-row ~ .inline-label.controls-row {
+  margin-top: 2px !important;
+  padding-top: 0 !important;
+}
+
+/* Keep small compact size for all small buttons */
+#poiData .inline-label.controls-row button:not(#saveBtn) {
+  height: 28px !important;
+  line-height: 28px !important;
+  padding: 0 6px !important;
+  font-size: 12px !important;
+  margin: 0 !important;
+}
+#poiData .inline-label.controls-row button:not(#saveBtn) img {
+  width: 14px !important;
+  height: 14px !important;
+  margin-right: 2px !important;
+}
+
+/* Ensure Save button stays aligned to the far right and centered internally */
+#saveBtn {
+  margin-left: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 6px !important;
+}
+#saveBtn img {
+  width: 28px !important;
+  height: 28px !important;
+  margin: 2px 0 4px 0 !important;
+  display: block !important;
+}
+
+
+/* Save button full width below other controls */
+.save-row {
+  margin-top: 6px !important;
+  display: flex;
+  justify-content: flex-start;
+}
+.save-row #saveBtn {
+  width: 100% !important;
+  height: 50px !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+  border-radius: 8px !important;
+  background: linear-gradient(135deg, #388e3c, #2e7d32) !important;
+  color: #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: row !important;
+}
+.save-row #saveBtn img {
+  width: 22px !important;
+  height: 22px !important;
+  margin: 0 8px 0 0 !important;
+}
+
+
+/* Save button full width below record counter */
+.save-row {
+  margin: 8px 0 !important;
+  display: flex;
+  justify-content: flex-start;
+}
+.save-row #saveBtn {
+  width: 100% !important;
+  height: 50px !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+  border-radius: 8px !important;
+  background: linear-gradient(135deg, #388e3c, #2e7d32) !important;
+  color: #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: row !important;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+  transition: all 0.2s ease-in-out;
+}
+.save-row #saveBtn img {
+  width: 22px !important;
+  height: 22px !important;
+  margin: 0 8px 0 0 !important;
+}
+.save-row #saveBtn:hover {
+  transform: scale(1.02);
+  background: linear-gradient(135deg, #43a047, #388e3c) !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+/* Add small margin above first group of buttons so they're not glued to textareas */
+#poiData .inline-label.controls-row {
+  margin-top: 6px !important;
+}
+
+</style>
+</head>
+<body>
+<div class="main-layout">
+    <div class="panel">
+        <h2>Edytor Lokalizacji</h2>
+        <div class="controls" style="padding-bottom: 15px;">
+            <button id="schemaBtn" title="Pokaż schemat CSV">
+                <img src="https://icons.getbootstrap.com/assets/icons/info-circle.svg" alt="info"
+                     style="width:18px;vertical-align:middle;margin-right:4px;">
+            </button>
+            <input type="file" id="inputFile" accept=".csv" style="display:none;"/>
+            <button id="loadBtn" title="Wczytaj plik">
+                <img src="https://icons.getbootstrap.com/assets/icons/folder2-open.svg" alt="folder"
+                     style="width:18px;vertical-align:middle;margin-right:4px;">
+            </button>
+            <button id="exportBtn" title="Eksportuj dane (ctrl + e)">
+                <img src="https://icons.getbootstrap.com/assets/icons/download.svg" alt="export"
+                     style="width:18px;vertical-align:middle;margin-right:4px;">
+
+            </button>
+            <button id="addNewLocationBtn" title="Dodaj lokalizację (ctrl + d)">
+                <img src="https://icons.getbootstrap.com/assets/icons/plus-circle.svg" alt="plus"
+                     style="width:18px;vertical-align:middle;margin-right:4px;">
+                Dodaj lokalizację
+            </button>
+        </div>
+        <div class="controls controls-row">
+            <div class="inline-label" style="flex:1; margin-bottom: 0px; width: 100%">
+                <textarea id="inputFileName" class="full-width" readonly tabindex="-1" rows="1"
+                          placeholder=" "></textarea>
+                <span class="input-sizer"></span>
+            </div>
+            <div id="info" style="margin-left:12px; white-space:nowrap;"></div>
+<div class="save-row"><button id="saveBtn" title="Zapisz (ctrl + z)">
+                    <img src="https://icons.getbootstrap.com/assets/icons/save.svg" alt="zapisz"
+                         style="width:18px;vertical-align:middle;margin-right:4px;">
+                    Zapisz
+                </button></div>
+        </div>
+        <div id="poiData" class="controls" style="display:none;">
+            <div class="inline-label">
+                <label for="originalName"><b>Nazwa:</b></label>
+                <textarea id="originalName" class="full-width" rows="1" readonly tabindex="-1"
+                          placeholder=" "></textarea>
+                <span class="input-sizer"></span>
+            </div>
+            <div class="floating-label">
+                <textarea id="nameEdit" class="full-width" rows="1" placeholder=" "></textarea>
+                <span class="input-sizer"></span>
+            </div>
+            <div class="margin"></div>
+
+            <div class="controls-row">
+                <div class="floating-label">
+                    <b>Uwagi:</b>
+                    <textarea id="comments" class="full-width" rows="2" placeholder=" "></textarea>
+                    <span class="input-sizer"></span>
+                </div>
+            </div>
+            <div class="margin"></div>
+
+            <div class="inline-label">
+                <label for="originalPostCode"><b>Kod Pocztowy:</b></label>
+                <input type="text" id="originalPostCode" readonly tabindex="-1" class="full-width"/>
+                <span class="input-sizer"></span>
+            </div>
+            <div class="floating-label">
+                <input type="text" id="postCodeEdit" class="full-width" placeholder=" "/>
+                <span class="input-sizer"></span>
+            </div>
+            <div class="margin"></div>
+
+            <div class="inline-label">
+                <label for="originalCity"><b>Miasto:</b></label>
+                <input type="text" id="originalCity" readonly tabindex="-1" class="full-width"/>
+                <span class="input-sizer"></span>
+            </div>
+            <div class="floating-label">
+                <input type="text" id="cityEdit" class="full-width" placeholder=" "/>
+                <span class="input-sizer"></span>
+            </div>
+            <div class="margin"></div>
+
+            <div class="inline-label">
+                <label for="originalStreet"><b>Ulica:</b></label>
+                <input type="text" id="originalStreet" readonly tabindex="-1" class="full-width"/>
+                <span class="input-sizer"></span>
+            </div>
+            <div class="floating-label">
+                <input type="text" id="streetEdit" class="full-width" placeholder=" "/>
+                <span class="input-sizer"></span>
+            </div>
+            <div class="margin"></div>
+
+            <div class="inline-label">
+                <label for="originalHouse"><b>Nr domu:</b></label>
+                <input type="text" id="originalHouse" readonly tabindex="-1" class="full-width"/>
+                <span class="input-sizer"></span>
+            </div>
+            <div class="floating-label">
+                <input type="text" id="houseEdit" class="full-width" placeholder=" "/>
+                <span class="input-sizer"></span>
+            </div>
+            <div class="margin"></div>
+
+            <div class="inline-label controls-row">
+                <button id="deleteBtn" title="Usuń (ctrl + del)">
+                    <img src="https://icons.getbootstrap.com/assets/icons/trash.svg" alt="usuń"
+                         style="width:18px;vertical-align:middle;margin-right:4px;">
+                    Usuń
+                </button>
+                <button id="toMapBtn" title="pokaż na mapie">
+                    <img src="https://icons.getbootstrap.com/assets/icons/crosshair.svg" alt="mapa"
+                         style="width:18px;vertical-align:middle;margin-right:4px;">
+                    pokaż na mapie
+                </button>
+                <button id="getCenterBtn" title="Kopiuj lokalizację">
+                    <img src="https://icons.getbootstrap.com/assets/icons/geo-alt.svg" alt="kopiuj"
+                         style="width:18px;vertical-align:middle;margin-right:4px;">
+                    Kopiuj lokalizację
+                </button>
+<button id="pasteGoogleBtn" title="Wklej z Google">
+                    <img src="https://icons.getbootstrap.com/assets/icons/clipboard.svg" alt="clipboard"
+                         style="width:18px;vertical-align:middle;margin-right:4px;">
+                    Wklej z Google
+                </button>
+
+                <button id="restoreBtn">Przywróć</button>
+            </div>
+            <div class="margin"></div>
+
+            
+        </div>
+
+        <div class="controls" id="navigationArrow" style="display:none;">
+            <div class="controls-row nav-row">
+                <div class="nav-left">
+                    <button id="prevBtn" title="Poprzedni (ctrl + &#8592;)">&#8592;</button>
+                    <button id="gotoPrevBtn" title="Poprzedni nieuzupełniony (ctrl + &#8595;)">&#8595;</button>
+                </div>
+                <div class="nav-right">
+                    <button id="gotoBtn" title="Następny nieuzupełniony (ctrl + &#8593;)">&#8593;</button>
+                    <button id="nextBtn" title="Następny (ctrl + &#8594;)">&#8594;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="map"></div>
+</div>
+
+<div id="customAlert"
+     style="display:none; position:fixed; top:30%; left:50%; transform:translate(-50%,-50%); background:#fff; border:1px solid #888; padding:20px; z-index:1000;">
+    <span id="customAlertMsg"></span>
+    <br><br>
+    <button onclick="document.getElementById('customAlert').style.display='none'">OK</button>
+</div>
+
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js">
+// Global keys: Enter -> Save, Left/Right -> navigate (not while typing)
+document.addEventListener('keydown', function(e) {
+    const tag = (document.activeElement && document.activeElement.tagName) || '';
+    const typing = tag === 'INPUT' || tag === 'TEXTAREA';
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const saveBtn = document.getElementById('saveBtn');
+        if (saveBtn) saveBtn.click();
+    }
+    if (!typing && e.key === 'ArrowRight') {
+        e.preventDefault();
+        const nextBtn = document.getElementById('nextBtn');
+        if (nextBtn) nextBtn.click();
+    }
+    if (!typing && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const prevBtn = document.getElementById('prevBtn');
+        if (prevBtn) prevBtn.click();
+    }
+});
+
+
+(function ensureRedPin(){
+  function apply() {
+    var a = document.querySelector('.leaflet-draw-toolbar a.leaflet-draw-draw-marker');
+    if (!a) return false;
+    var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='red' d='M12 22s7-7.21 7-12.1C19 6.02 15.87 3 12 3S5 6.02 5 9.9C5 14.79 12 22 12 22z'/><circle cx='12' cy='10' r='3.2' fill='white'/></svg>";
+    var url = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    a.style.backgroundImage = 'url(' + url + ')';
+    a.style.backgroundRepeat = 'no-repeat';
+    a.style.backgroundPosition = 'center center';
+    a.style.backgroundSize = '38px 38px';
+    a.style.width = '64px';
+    a.style.height = '64px';
+    a.style.lineHeight = '64px';
+    a.style.borderRadius = '12px';
+    a.style.backgroundColor = '#333';
+    a.style.border = '1px solid #555';
+    // ensure no pseudo content overlays
+    a.style.setProperty('--no-before', '1');
+    return true;
+  }
+  if (!apply()) {
+    var tries = 0;
+    var iv = setInterval(function(){
+      tries++;
+      if (apply() || tries > 20) clearInterval(iv);
+    }, 200);
+  }
+})();
+
+</script>
+<script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js">
+// Global keys: Enter -> Save, Left/Right -> navigate (not while typing)
+document.addEventListener('keydown', function(e) {
+    const tag = (document.activeElement && document.activeElement.tagName) || '';
+    const typing = tag === 'INPUT' || tag === 'TEXTAREA';
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const saveBtn = document.getElementById('saveBtn');
+        if (saveBtn) saveBtn.click();
+    }
+    if (!typing && e.key === 'ArrowRight') {
+        e.preventDefault();
+        const nextBtn = document.getElementById('nextBtn');
+        if (nextBtn) nextBtn.click();
+    }
+    if (!typing && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const prevBtn = document.getElementById('prevBtn');
+        if (prevBtn) prevBtn.click();
+    }
+});
+
+
+(function ensureRedPin(){
+  function apply() {
+    var a = document.querySelector('.leaflet-draw-toolbar a.leaflet-draw-draw-marker');
+    if (!a) return false;
+    var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='red' d='M12 22s7-7.21 7-12.1C19 6.02 15.87 3 12 3S5 6.02 5 9.9C5 14.79 12 22 12 22z'/><circle cx='12' cy='10' r='3.2' fill='white'/></svg>";
+    var url = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    a.style.backgroundImage = 'url(' + url + ')';
+    a.style.backgroundRepeat = 'no-repeat';
+    a.style.backgroundPosition = 'center center';
+    a.style.backgroundSize = '38px 38px';
+    a.style.width = '64px';
+    a.style.height = '64px';
+    a.style.lineHeight = '64px';
+    a.style.borderRadius = '12px';
+    a.style.backgroundColor = '#333';
+    a.style.border = '1px solid #555';
+    // ensure no pseudo content overlays
+    a.style.setProperty('--no-before', '1');
+    return true;
+  }
+  if (!apply()) {
+    var tries = 0;
+    var iv = setInterval(function(){
+      tries++;
+      if (apply() || tries > 20) clearInterval(iv);
+    }, 200);
+  }
+})();
+
+</script>
+</body>
+</html>
+
+
+<script>
+    const APP_VERSION = '1.1.0';
+
+    let locations = [];
+    let currentIdx = -1;
+    let drawnLayer = null;
+    let map, drawControl;
+    let stateKey = "editorState";
+    let inputFileName = "";
+    let marker = null;
+    let zoom = 16;
+    let exportRequired = false;
+    let lastGeometryType = 'polygon';
+    let editCount = 0;
+    let searchMarker = null; // dodaj globalnie
+
+
+    const headers = ['gpsposition','name','street_name','house_number','city_name', 'post_code', 'geometry', 'edit_name','edit_street_name','edit_house_number','edit_city_name', 'edit_post_code','state','comments'];
+
+    const beginState = 'do_edycji';
+    const newState = 'nowy'
+    const confirmedState = 'potwierdzone'
+    const modifiedState = 'zmodyfikowane'
+    const deletedState = 'usunięty'
+
+    const stateColors = {
+        'do_edycji': '#000000',      // czarny
+        'nowy': '#4CAF50',           // zielony
+        'potwierdzone': '#2196F3',   // niebieski
+        'zmodyfikowane': '#4CAF50',  // pomarańczowy
+        'usunięty': '#F44336'        // czerwony
+    };
+
+
+    function updateEditFieldsColor(state) {
+        const color = stateColors[state] || "#000";
+        document.getElementById('nameEdit').style.color = color;
+        document.getElementById('streetEdit').style.color = color;
+        document.getElementById('houseEdit').style.color = color;
+        document.getElementById('cityEdit').style.color = color;
+        document.getElementById('postCodeEdit').style.color = color;
+        document.getElementById('comments').style.color = color;
+    }
+
+    function checkAppVersion() {
+        const storedVersion = localStorage.getItem('appVersion');
+        if (storedVersion !== APP_VERSION) {
+            localStorage.clear();
+            localStorage.setItem('appVersion', APP_VERSION);
+        }
+    }
+
+    function updateEditRestoreVisibility(state) {
+        const edit = document.getElementById('deleteBtn');
+        const edit2 = document.getElementById('saveBtn');
+        const restore = document.getElementById('restoreBtn');
+        if (state === deletedState) {
+            edit.style.display = 'none';
+            edit2.style.display = 'none';
+            restore.style.display = '';
+        } else {
+            edit.style.display = '';
+            edit2.style.display = '';
+            restore.style.display = 'none';
+        }
+    }
+
+    function autoResizeTextarea(el) {
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 4 + 'px';
+    }
+
+    document.querySelectorAll('textarea').forEach(ta => {
+        ta.addEventListener('input', function() {
+            autoResizeTextarea(this);
+        });
+    });
+
+    function resizeTextAreas() {
+        document.querySelectorAll('textarea').forEach(ta => {
+            ta.style.height = 'auto';
+            ta.style.height = ta.scrollHeight + 4  + 'px';
+        });
+    }
+    window.addEventListener('resize', resizeTextAreas);
+
+   // Tworzenie żółtej ikony Leaflet
+    let yellowIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-yellow.png',
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+    });
+
+    // crossIcon ikona Leaflet
+    let crossIcon = new L.Icon({
+        iconUrl: 'https://icons.getbootstrap.com/assets/icons/x-lg.svg',
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32],
+        shadowUrl: null
+    });
+
+    let shapeOptions = {
+            color: '#FFD600',
+            weight: 3
+    };
+
+    function saveState() {
+        localStorage.setItem(stateKey, JSON.stringify(locations));
+        localStorage.setItem("lastInputFileName", inputFileName);
+        localStorage.setItem("zoom", zoom);
+        localStorage.setItem("index", currentIdx);
+    }
+
+    function onUserUpdate() {
+        saveState();
+        exportRequired = true;
+        updateSaveBtnColor();
+    }
+
+    function updateSaveBtnColor() {
+        const loc = locations[currentIdx];
+        const saveBtn = document.getElementById('saveBtn');
+        if (loc && isChanged(loc)) {
+            saveBtn.style.background = '#F44336'; // czerwony
+            saveBtn.style.color = '#fff';
+        } else {
+            saveBtn.style.background = '';
+            saveBtn.style.color = '';
+        }
+    }
+
+    function updateExportBtnColor() {
+        const exportBtn = document.getElementById('exportBtn');
+        if (editCount > 0) {
+            exportBtn.style.background = '#F44336'; // czerwony
+            exportBtn.style.color = '#fff';
+        } else {
+            exportBtn.style.background = '';
+            exportBtn.style.color = '';
+        }
+    }
+
+    function isChanged(loc) {
+        if (!loc) return false;
+        const editName = document.getElementById('nameEdit').value.trim();
+        const editStreet = document.getElementById('streetEdit').value.trim();
+        const editHouse = document.getElementById('houseEdit').value.trim();
+        const editCity = document.getElementById('cityEdit').value.trim();
+        const postCode = document.getElementById('postCodeEdit').value.trim();
+        const comments = document.getElementById('comments').value.trim();
+
+        var b = true;
+        if (loc.state == newState) {
+            b = editName !== "" && loc.gpsposition != null;
+        }
+
+        return (
+            b && (
+                (editName !== (loc.name ?? "")) ||
+                (editStreet !== (loc.street_name ?? "")) ||
+                (editHouse !== (loc.house_number ?? "")) ||
+                (editCity !== (loc.city_name ?? "")) ||
+                (postCode !== (loc.post_code ?? "")) ||
+                (comments !== (loc.comments ?? "")) ||
+                (loc.geometry && loc.editGeometry && !areGeoJSONEqual(loc.editGeometry, ensureGeoJSON(loc.geometry))) ||
+                (!loc.geometry && loc.editGeometry && !areGeoJSONEqual(loc.editGeometry, wktToGeoJSON(loc.gpsposition)))
+            )
+        );
+    }
+
+    function ensureGeoJSON(geometry) {
+        if (isGeoJSON(geometry)) {
+            return geometry;
+        }
+        return wktToGeoJSON(geometry);
+    }
+
+    function areGeoJSONEqual(a, b) {
+        if (!a || !b) return false;
+        // Porównanie typu
+        const typeA = a.type === 'Feature' ? a.geometry.type : a.type;
+        const typeB = b.type === 'Feature' ? b.geometry.type : b.type;
+        if (typeA !== typeB) return false;
+
+        // Porównanie współrzędnych
+        const coordsA = a.type === 'Feature' ? a.geometry.coordinates : a.coordinates;
+        const coordsB = b.type === 'Feature' ? b.geometry.coordinates : b.coordinates;
+
+        return JSON.stringify(coordsA) === JSON.stringify(coordsB);
+    }
+
+    function loadState() {
+        zoom = localStorage.getItem("zoom") || zoom;
+        const data = localStorage.getItem(stateKey);
+        if (data) {
+            const invalid = validateLocations(data);
+            if (invalid.length > 0) {
+                inputFileName = localStorage.getItem("lastInputFileName") || ""
+                localStorage.removeItem("lastInputFileName");
+                localStorage.removeItem(stateKey);
+                localStorage.removeItem(index);
+                inputFileName = "";
+                alert("Brakujące dane w rekordach: " + invalid.map(e => e.idx + 1).join(', '));
+            } else {
+                locations = JSON.parse(data);
+                inputFileName = localStorage.getItem("lastInputFileName") || "";
+                currentIdx = Number(localStorage.getItem("index"));
+            }
+        }
+    }
+
+    function validateLocations(data) {
+        if (typeof data === 'string') {
+            try {
+                data = JSON.parse(data);
+            } catch (e) {
+                return [{ idx: -1, loc: null }];
+            }
+        }
+        if (!Array.isArray(data)) return [{ idx: -1, loc: null }];
+        const missing = [];
+        data.forEach((loc, idx) => {
+            if(loc.state !== newState) {
+                if (
+                    loc.lat == null || loc.lng == null ||
+                    typeof loc.lat !== 'number' || isNaN(loc.lat) ||
+                    typeof loc.lng !== 'number' || isNaN(loc.lng)
+                ) {
+                    missing.push({ idx, loc });
+                }
+            }
+        });
+        return missing;
+    }
+
+    function updateInfo() {
+        const loc = locations[currentIdx];
+        if (!loc) {
+            document.getElementById('nameEdit').value = '';
+            document.getElementById('streetEdit').value = '';
+            document.getElementById('houseEdit').value = '';
+            document.getElementById('cityEdit').value = '';
+            document.getElementById('postCodeEdit').value = '';
+            document.getElementById('originalName').value = '';
+            document.getElementById('originalStreet').value = '';
+            document.getElementById('originalHouse').value = '';
+            document.getElementById('originalCity').value = '';
+            document.getElementById('originalPostCode').value = '';
+            document.getElementById('comments').value = '';
+            document.getElementById('info').innerText = '(0/0)';
+            return;
+        }
+        document.getElementById('info').innerHTML = `${currentIdx + 1}/${locations.length} <span style="color:red;">(${countBeginstate()})</span>`;
+        document.getElementById('nameEdit').value = trimToNull(loc.edit_name) ?? loc.name ?? '';
+        autoResizeTextarea(document.getElementById('nameEdit'));
+        document.getElementById('streetEdit').value = trimToNull(loc.edit_street_name) ?? loc.street_name ?? '';
+        document.getElementById('houseEdit').value = trimToNull(loc.edit_house_number) ??loc.house_number ?? '';
+        document.getElementById('cityEdit').value = trimToNull(loc.edit_city_name) ?? loc.city_name ?? '';
+        document.getElementById('postCodeEdit').value = trimToNull(loc.edit_post_code) ?? loc.post_code ?? '';
+        document.getElementById('originalName').value = loc.name;
+        autoResizeTextarea(document.getElementById('originalName'));
+        document.getElementById('originalStreet').value = loc.street_name ?? '';
+        document.getElementById('originalHouse').value = loc.house_number ?? '';
+        document.getElementById('originalCity').value = loc.city_name ?? '';
+        document.getElementById('originalPostCode').value = loc.post_code ?? '';
+        document.getElementById('comments').value = loc.comments ?? '';
+        updateEditFieldsColor(loc?.state);
+        resizeTextAreas();
+    }
+
+    function showLocation(idx) {
+        if (!locations || locations.length === 0 || idx < 0 || idx >= locations.length) return;
+        currentIdx = idx;
+
+        const loc = locations[currentIdx];
+        if (loc.gpsposition) {
+            map.setView([loc.lat, loc.lng], zoom);
+        }
+
+        if (drawnLayer) map.removeLayer(drawnLayer);
+        if (marker) map.removeLayer(marker);
+
+        if (loc.gpsposition) {
+            marker = L.marker([loc.lat, loc.lng]).addTo(map);
+            drawControl.setDrawingOptions({
+                polyline: true,
+                polygon: true,
+                marker: true
+            });
+            map.removeControl(drawControl);
+            map.addControl(drawControl);
+            //drawControl._toolbars.draw._modes[lastGeometryType].handler.enable();
+        } else {
+            drawControl.setDrawingOptions({
+                polyline: false,
+                polygon: false,
+                marker: true
+            });
+            map.removeControl(drawControl);
+            map.addControl(drawControl);
+        }
+        if (loc.geometry) {
+            // Jeśli to marker (Point), ustaw żółtą ikonę
+            if (
+                (loc.geometry.type === 'Point') ||
+                (loc.geometry.type === 'Feature' && loc.geometry.geometry && loc.geometry.geometry.type === 'Point')
+            ) {
+                const coords = loc.geometry.type === 'Point'
+                    ? loc.geometry.coordinates
+                    : loc.geometry.geometry.coordinates;
+                drawnLayer = L.marker([coords[1], coords[0]], { icon: yellowIcon }).addTo(map);
+            } else {
+                // Dla linii i poligonów ustaw shapeOptions na żółty
+                drawnLayer = L.geoJSON(loc.geometry, {
+                    style: shapeOptions
+                }).addTo(map);
+            }
+        } else {
+            drawnLayer = null;
+        }
+        updateInfo();
+        updateEditRestoreVisibility(loc?.state);
+        updateSaveBtnColor();
+        document.getElementById('nameEdit').focus();
+        if (searchMarker) {
+            map.removeLayer(searchMarker);
+        }
+    }
+
+    function saveGeometry(geojson) {
+        const loc = locations[currentIdx];
+
+        if (loc.state == newState) {
+            if (!loc.gpsposition) {
+               loc.gpsposition = geojsonToWKT(geojson);
+                const coords = geojson.type === 'Point'
+                    ? geojson.coordinates
+                    : geojson.geometry.coordinates;
+               loc['lat'] = coords[1];
+               loc['lng'] = coords[0];
+               if (marker) {
+                    map.removeLayer(marker);
+               }
+               if (drawnLayer) {
+                   map.removeLayer(drawnLayer);
+               }
+               marker = L.marker([loc.lat, loc.lng]).addTo(map);
+               drawnLayer = null;
+               drawControl.setDrawingOptions({
+                    polyline: true,
+                    polygon: true,
+                    marker: true
+               });
+               map.removeControl(drawControl);
+               map.addControl(drawControl);
+               //drawControl._toolbars.draw._modes[lastGeometryType].handler.enable();
+            } else {
+               loc.editGeometry = geojson;
+            }
+        } else {
+            loc.editGeometry = geojson;
+        }
+
+        zoom = map.getZoom();
+        onUserUpdate();
+    }
+
+    function deleteGeometry() {
+        locations[currentIdx].editGeometry = null;
+        onUserUpdate();
+        if (drawnLayer) map.removeLayer(drawnLayer);
+    }
+
+    function nextLocation() {
+        if (!locations || locations.length === 0) return;
+        const nextIdx = (currentIdx + 1) % locations.length;
+        checkAndShowLocation(nextIdx);
+    }
+
+    function prevLocation() {
+        if (!locations || locations.length === 0) return;
+        const prevIdx = (currentIdx - 1 + locations.length) % locations.length;
+        checkAndShowLocation(prevIdx);
+    }
+
+    function checkAndShowLocation(idx) {
+         if (currentIdx && locations[currentIdx].state === newState &&
+            (!locations[currentIdx].name || !locations[currentIdx].gpsposition)) {
+            locations.splice(currentIdx, 1);
+            if (idx > currentIdx) idx--;
+        }
+        showLocation(idx);
+    }
+
+    function gotoNextEmpty() {
+        if (!locations.length) return;
+        let idx = currentIdx;
+        for (let i = 1; i <= locations.length; i++) {
+            const nextIdx = (currentIdx + i) % locations.length;
+            if (!isLocationFilled(locations[nextIdx])) {
+                checkAndShowLocation(nextIdx);
+                return;
+            }
+        }
+        alert("Wszystkie lokalizacje mają geometrię.");
+    }
+
+    function gotoPrevEmpty() {
+        if (!locations.length) return;
+        for (let i = 1; i <= locations.length; i++) {
+            const prevIdx = (currentIdx - i + locations.length) % locations.length;
+            if (!isLocationFilled(locations[prevIdx])) {
+                checkAndShowLocation(prevIdx);
+                return;
+            }
+        }
+        alert("Wszystkie lokalizacje mają geometrię.");
+    }
+
+    function isLocationFilled(loc) {
+        if (!loc) return false;
+        const name = trimToNull(loc.edit_name) ?? trimToNull(loc.name);
+        return loc.state == confirmedState || loc.state == modifiedState || (loc.geometry != null && loc.geometry != '' && name != null && name != '');
+    }
+
+
+    function countBeginstate() {
+        return locations.filter(loc => loc.state === beginState).length;
+    }
+
+
+    function isGeoJSON(obj) {
+        if (!obj || typeof obj !== 'object') return false;
+        if (obj.type === 'Feature' && obj.geometry) {
+            return typeof obj.geometry.type === 'string' && Array.isArray(obj.geometry.coordinates);
+        }
+        return typeof obj.type === 'string' && Array.isArray(obj.coordinates);
+    }
+
+    function geojsonToWKT(geojson) {
+        if (!geojson) return '';
+        const type = geojson.type === 'Feature' ? geojson.geometry.type : geojson.type;
+        const coords = geojson.type === 'Feature' ? geojson.geometry.coordinates : geojson.coordinates;
+
+        function coordsToStr(c) {
+            if (typeof c[0] === 'number') return c.join(' ');
+            if (typeof c[0][0] === 'number') return c.map(coordsToStr).join(', ');
+            return c.map(ring => '(' + coordsToStr(ring) + ')').join(', ');
+        }
+
+        switch (type) {
+            case 'Point':
+                return `POINT(${coordsToStr(coords)})`;
+            case 'LineString':
+                return `LINESTRING(${coordsToStr(coords)})`;
+            case 'Polygon':
+                return `POLYGON(${coordsToStr(coords)})`;
+            default:
+                return '';
+        }
+    }
+
+    function wktToGeoJSON(wkt) {
+        wkt = wkt.trim();
+        const type = wkt.split('(')[0].toUpperCase().trim();
+        const extractNumbers = str => str.trim().split(/\s+/).map(Number);
+
+        if (type === 'POINT') {
+            const coords = extractNumbers(wkt.match(/\(([^)]+)\)/)[1]);
+            return { type: 'Point', coordinates: coords };
+        }
+        if (type === 'LINESTRING') {
+            const coords = wkt.match(/\(([^)]+)\)/)[1]
+                .split(',')
+                .map(pair => extractNumbers(pair));
+            return { type: 'LineString', coordinates: coords };
+        }
+        if (type === 'POLYGON') {
+            const rings = wkt.match(/\(\((.+)\)\)/)[1]
+                .split('),(')
+                .map(ring => ring.split(',').map(pair => extractNumbers(pair)));
+            return { type: 'Polygon', coordinates: rings };
+        }
+        // Możesz dodać obsługę innych typów geometrycznych
+        console.warn(`Unsupported WKT type: ${type}`);
+        return null;
+    }
+
+    function exportToCSV() {
+        if (!locations.length || !inputFileName) return;
+        const rows = locations
+            .filter(loc => !(loc.state === newState && (!loc.name || !loc.gpsposition)))
+            .map(loc =>
+                headers.map(h => {
+                    if (h === 'geometry') {
+                        return `${loc.geometry ? geojsonToWKT(loc.geometry) : ''}`;
+                    }
+                    return `${(loc[h] ?? '').toString().replace(/"/g, '""')}`;
+                })
+            .join(';')
+        );
+        const csvContent = [headers.join(';'), ...rows].join('\n');
+        const now = new Date();
+        const pad = n => n.toString().padStart(2, '0');
+        const dateStr = `${now.getFullYear()}_${pad(now.getMonth() + 1)}_${pad(now.getDate())}_${pad(now.getHours())}_${pad(now.getMinutes())}_${pad(now.getSeconds())}`;
+        let baseName = inputFileName.replace(/\.[^/.]+$/, "");
+        baseName = baseName.replace(/_\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}$/, "");
+        const fileName = `${baseName}_${dateStr}.csv`;
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const dl = document.createElement('a');
+        dl.setAttribute('href', url);
+        dl.setAttribute('download', fileName);
+        dl.style.display = 'none';
+        document.body.appendChild(dl);
+        dl.click();
+        setTimeout(() => {
+            document.body.removeChild(dl);
+            URL.revokeObjectURL(url);
+        }, 0);
+    }
+
+    function parseCSV(text) {
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(';');
+        try {
+            return lines.slice(1).map(line => {
+                const values = line.split(';');
+                const obj = {};
+                headers.forEach((h, i) => {
+                    let v = trimToNull(values[i]);
+                    if (h === 'gpsposition') {
+                        const geojson = wktToGeoJSON(v);
+                        if (geojson) {
+                            obj['lat'] = geojson.coordinates[1];
+                            obj['lng'] = geojson.coordinates[0];
+                        }
+                    }
+                    if (v != null && h === 'geometry') v = wktToGeoJSON(v);
+                    obj[h.trim()] = v;
+                });
+                if (obj['state'] == null) {
+                    obj['state']= beginState;
+                }
+                return obj;
+            });
+        } catch (error) {
+            console.error("Error parsing CSV:", error.message);
+            return [];
+        }
+    }
+
+    function trimToNull(val) {
+        if (val == null) return null;
+        const t = val.trim();
+        return t === '' ? null : t;
+    }
+
+    document.getElementById('inputFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        inputFileName = file.name;
+        document.getElementById('inputFileName').value = inputFileName;
+        document.getElementById('inputFileName').title = "Nazwa pliku CSV: " + inputFileName;
+        autoResizeTextarea(document.getElementById('inputFileName'));
+
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            locations = parseCSV(ev.target.result);
+            document.getElementById('poiData').style.display = '';
+            document.getElementById('navigationArrow').style.display = '';
+            if (!locations || locations.length === 0) {
+                addNewLocation();
+            } else {
+                currentIdx = 0;
+                saveState();
+                showLocation(0);
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    function resizeMap() {
+        resizeTextAreas();
+    }
+
+    // Funkcja do wyświetlania alertu z HTML
+    function showHtmlAlert(html) {
+        document.getElementById('customAlertMsg').innerHTML = html;
+        document.getElementById('customAlert').style.display = 'block';
+    }
+
+    window.addEventListener('resize', resizeMap);
+    window.addEventListener('DOMContentLoaded', function() {
+         resizeMap();
+    });
+
+    document.getElementById('exportBtn').onclick = function() {
+        exportToCSV();
+        exportRequired = false;
+        editCount = 0;
+        updateExportBtnColor();
+    };
+
+    document.getElementById('prevBtn').onclick = prevLocation;
+    document.getElementById('nextBtn').onclick = nextLocation;
+    document.getElementById('gotoBtn').onclick = gotoNextEmpty;
+    document.getElementById('gotoPrevBtn').onclick = gotoPrevEmpty;
+    document.getElementById('nameEdit').addEventListener('input', updateSaveBtnColor);
+    document.getElementById('streetEdit').addEventListener('input', updateSaveBtnColor);
+    document.getElementById('houseEdit').addEventListener('input', updateSaveBtnColor);
+    document.getElementById('cityEdit').addEventListener('input', updateSaveBtnColor);
+    document.getElementById('postCodeEdit').addEventListener('input', updateSaveBtnColor);
+    document.getElementById('nameEdit').onchange = function(e) {
+        onUserUpdate();
+        updateSaveBtnColor();
+    };
+    document.getElementById('streetEdit').onchange = function(e) {
+        onUserUpdate();
+        updateSaveBtnColor();
+    };
+    document.getElementById('houseEdit').onchange = function(e) {
+        onUserUpdate();
+        updateSaveBtnColor();
+    };
+    document.getElementById('cityEdit').onchange = function(e) {
+        onUserUpdate();
+        updateSaveBtnColor();
+    };
+    document.getElementById('postCodeEdit').onchange = function(e) {
+        onUserUpdate();
+        updateSaveBtnColor();
+    };
+    document.getElementById('comments').onchange = function(e) {
+        onUserUpdate();
+        updateSaveBtnColor();
+    };
+
+    document.getElementById('loadBtn').onclick = function() {
+        if (exportRequired) {
+            alert("Najpierw wyeksportuj dane przed wczytaniem nowego pliku!");
+            return;
+        }
+        document.getElementById('inputFile').click();
+    };
+
+    async function readClipboardFallback() {
+        let text = '';
+        try {
+            // Nowoczesna metoda
+            text = await navigator.clipboard.readText();
+        } catch (e) {
+            // Fallback dla Firefoksa
+            const ta = document.createElement('textarea');
+            document.body.appendChild(ta);
+            ta.focus();
+            document.execCommand('paste');
+            text = ta.value;
+            document.body.removeChild(ta);
+        }
+        return text;
+    }
+
+    document.getElementById('pasteGoogleBtn').onclick = async function() {
+        try {
+            const text = await readClipboardFallback();
+            if(isAddress(text)) {
+                pasteAddress(text);
+                resizeTextAreas();
+                updateSaveBtnColor();
+            } else {
+                showHtmlAlert('Format nie pasuje do oczekiwanego wzorca: ulica i numer, kod pocztowy miejscowość');
+            }
+        } catch (e) {
+            showHtmlAlert('Nie udało się pobrać danych ze schowka.');
+        }
+    };
+
+    document.addEventListener('paste', async function(e) {
+        const target = e.target; // pole, do którego następuje wklejenie
+        // Pobierz tekst ze schowka
+        let pastedText = '';
+        if (e.clipboardData && e.clipboardData.getData) {
+            pastedText = e.clipboardData.getData('text');
+        } else {
+            pastedText = await readClipboardFallback();
+        }
+
+        if (isAddress(pastedText)){
+            pasteAddress(pastedText);
+            if (target.id !== 'comments') {
+                e.preventDefault(); // opcjonalnie: blokuje domyślne wklejanie
+            }
+        }
+    });
+
+    function isAddress(text) {
+        const regex = /^(.+?)\s+\d+\w*,\s*\d{2}-\d{3}\s+.+$/;
+        return regex.test(text);
+    }
+
+    function pasteAddress(text) {
+            // Rozdziel na część przed i po przecinku
+            const [streetPart, cityPart] = text.split(',').map(s => s.trim());
+            // Ulica i numer
+            const streetMatch = streetPart.match(/^(.+?)\s+(\d+\w*)$/);
+            if (streetMatch) {
+                document.getElementById('streetEdit').value = streetMatch[1];
+                document.getElementById('houseEdit').value = streetMatch[2];
+            } else {
+                document.getElementById('streetEdit').value = streetPart;
+                document.getElementById('houseEdit').value = '';
+            }
+            // Kod pocztowy i miasto
+            const cityMatch = cityPart.match(/^(\d{2}-\d{3})\s+(.+)$/);
+            if (cityMatch) {
+                document.getElementById('postCodeEdit').value = cityMatch[1];
+                document.getElementById('cityEdit').value = cityMatch[2];
+            } else {
+                document.getElementById('postCodeEdit').value = '';
+                document.getElementById('cityEdit').value = cityPart;
+            }
+            resizeTextAreas();
+            updateSaveBtnColor();
+    }
+
+    document.getElementById('schemaBtn').onclick = function() {
+        showHtmlAlert(
+            `Plik csv z następującymi kolumnami:</br>
+            <b>gpsposition;name;street_name;house_number;city_name;geometry;edit_name;edit_street_name;edit_house_number;edit_city_name;state;comments</b></br>
+            gpsposition - lokalizacja</br>
+            name - nazwa geometri</br>
+            street_name - nazwa ulicy</br>
+            house_number - nr domu</br>
+            city_name - miasto</br>
+            geometry - wkt wynikowa geometria lub geometria do edycji (POINT, POLYGON, LINESTRING)
+            edit_name - zedytowana nazwa geometri</br>
+            edit_street_name - zedytowana nazwa ulicy</br>
+            edit_house_number - zedytowany nr domu</br>
+            edit_city_name - zedytowane miasto</br>
+            state - state edycji</br>
+            comments - uwagi</br>
+        `);
+    };
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Tab') {
+            const focusable = Array.from(document.querySelectorAll('input, textarea'))
+                .filter(el => !el.disabled && el.tabIndex !== -1 && el.offsetParent !== null);
+            const index = focusable.indexOf(document.activeElement);
+            if (index !== -1) {
+                e.preventDefault();
+                let nextIdx;
+                if (e.shiftKey) {
+                    nextIdx = (index - 1 + focusable.length) % focusable.length;
+                } else {
+                    nextIdx = (index + 1) % focusable.length;
+                }
+                focusable[nextIdx].focus();
+            } else {
+                nextIdx = 0;
+                focusable[nextIdx].focus();
+            }
+        }
+
+        if (e.ctrlKey && e.key.toLowerCase() === 'e') {
+            e.preventDefault();
+            document.getElementById('exportBtn').click();
+        }
+        if (e.ctrlKey && e.key.toLowerCase() === 'z') {
+            e.preventDefault();
+            document.getElementById('saveBtn').click();
+        }
+        if (e.ctrlKey && e.key.toLowerCase() === 'd') {
+            e.preventDefault();
+            document.getElementById('addNewLocationBtn').click();
+        }
+        if (e.ctrlKey && e.key === "Delete") {
+            e.preventDefault();
+            document.getElementById('deleteBtn').click();
+        }
+
+        if (e.ctrlKey && e.key === "ArrowRight") {
+            e.preventDefault();
+            document.getElementById('nextBtn').click();
+        }
+        if (e.ctrlKey && e.key=== "ArrowLeft") {
+            e.preventDefault();
+            document.getElementById('prevBtn').click();
+        }
+        if (e.ctrlKey && e.key === "ArrowUp") {
+            e.preventDefault();
+            document.getElementById('gotoBtn').click();
+        }
+        if (e.ctrlKey && e.key === "ArrowDown") {
+            e.preventDefault();
+            document.getElementById('gotoPrevBtn').click();
+        }
+        if (e.ctrlKey && e.key.toLowerCase() === 'q') {
+            e.preventDefault();
+            deleteGeometry();
+        }
+    });
+
+    document.getElementById('nameEdit').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+        }
+    });
+
+
+    function addNewLocation() {
+        // Usuń stare markery i warstwy
+        if (marker) {
+            map.removeLayer(marker);
+            marker = null;
+        }
+        if (drawnLayer) {
+            map.removeLayer(drawnLayer);
+            drawnLayer = null;
+        }
+        if (searchMarker) {
+            map.removeLayer(searchMarker);
+            searchMarker = null;
+        }
+        const newLoc = {
+            name: '',
+            street_name: '',
+            house_number: '',
+            city_name: '',
+            edit_name: '',
+            edit_street_name: '',
+            edit_house_number: '',
+            edit_city_name: '',
+            state: 'nowy'
+        };
+        if (currentIdx && locations.length > 0 && locations[currentIdx].state === newState &&
+            (!locations[currentIdx].name || !locations[currentIdx].gpsposition)) {
+            locations[currentIdx] = newLoc;
+        } else {
+            if (locations.length == 0) {
+                inputFileName = "new.csv";
+                document.getElementById('inputFileName').value = inputFileName;
+                document.getElementById('inputFileName').title = "Nazwa pliku CSV: " + inputFileName;
+                autoResizeTextarea(document.getElementById('inputFileName'));
+                document.getElementById('poiData').style.display = '';
+                document.getElementById('navigationArrow').style.display = '';
+                locations.push(newLoc);
+                currentIdx = 0;
+            } else {
+                 // Dodaj po aktualnej lokalizacji
+                locations.splice(currentIdx + 1, 0, newLoc);
+                currentIdx = currentIdx + 1;
+            }
+        }
+        saveState();
+        showLocation(currentIdx);
+    };
+
+    // Obsługa kliknięcia przycisku
+    document.getElementById('getCenterBtn').onclick = function() {
+        const loc = locations[currentIdx];
+        if (!loc || !loc.gpsposition) return;
+
+        const geo = wktToGeoJSON(loc.gpsposition);
+        let coordsText = '';
+
+        if (geo && geo.type === 'Point') {
+            coordsText = `${geo.coordinates[1].toFixed(6)}, ${geo.coordinates[0].toFixed(6)}`;
+        } else if (geo && geo.type === 'LineString') {
+            coordsText = geo.coordinates.map(c => `${c[1].toFixed(6)}, ${c[0].toFixed(6)}`).join(' | ');
+        } else if (geo && geo.type === 'Polygon') {
+            coordsText = geo.coordinates[0].map(c => `${c[1].toFixed(6)}, ${c[0].toFixed(6)}`).join(' | ');
+        } else {
+            coordsText = 'Nieobsługiwany typ geometrii';
+        }
+
+        navigator.clipboard.writeText(coordsText)
+            .then(() => {})
+            .catch(() => {
+                showHtmlAlert(`Nie udało się skopiować: <b>${coordsText}</b>`);
+            });
+    };
+
+    document.getElementById('addNewLocationBtn').onclick = addNewLocation;
+
+    document.getElementById('saveBtn').onclick = function() {
+        const loc = locations[currentIdx];
+        if (!loc) return;
+
+        // Pobierz wartości z pól edycji
+        const editName = document.getElementById('nameEdit').value.trim();
+        const editStreet = document.getElementById('streetEdit').value.trim();
+        const editHouse = document.getElementById('houseEdit').value.trim();
+        const editCity = document.getElementById('cityEdit').value.trim();
+        const editPostCode = document.getElementById('postCodeEdit').value.trim();
+        const comments = document.getElementById('comments').value.trim();
+
+        // Sprawdź czy coś się zmieniło względem oryginału
+        const changed = isChanged(loc);
+
+        // Zapisz do modelu
+        loc.edit_name = editName;
+        loc.edit_street_name = editStreet;
+        loc.edit_house_number = editHouse;
+        loc.edit_city_name = editCity;
+        loc.edit_post_code = editPostCode;
+        loc.geometry = loc.editGeometry;
+        if(!loc.geometry) {
+            loc.geometry = wktToGeoJSON(loc.gpsposition);
+        }
+        loc.comments = comments;
+        if (loc.state === newState) {
+            loc.name = editName;
+            loc.street_name = editStreet;
+            loc.house_number = editHouse;
+            loc.city_name = editCity;
+            loc.post_code = editPostCode;
+        }
+
+        // Ustaw state
+        if (loc.state !== newState && loc.state !== deletedState) {
+            loc.state = changed ? modifiedState : confirmedState ;
+        }
+
+        onUserUpdate();
+        updateInfo();
+        updateEditFieldsColor(loc.state);
+        editCount++;
+        updateExportBtnColor();
+
+        const saveBtn = document.getElementById('saveBtn');
+        saveBtn.style.background = '';
+        saveBtn.style.color = '';
+        updateEditFieldsColor(loc.state);
+    
+    };
+
+    document.getElementById('deleteBtn').onclick = function() {
+        const loc = locations[currentIdx];
+        if (!loc) return;
+
+        if (loc.state === newState) {
+            // Usuń całkowicie
+            locations.splice(currentIdx, 1);
+            if (currentIdx >= locations.length) currentIdx = locations.length - 1;
+        } else {
+            // Oznacz jako usunięty i wyczyść pola edycji
+            loc.state = deletedState;
+        }
+
+        onUserUpdate();
+        if (locations && locations.length > 0) {
+            showLocation(currentIdx >= 0 ? currentIdx : 0);
+        } else {
+            document.getElementById('poiData').style.display = 'none';
+            document.getElementById('navigationArrow').style.display = 'none';
+            currentIdx = -1;
+            updateInfo();
+             // Usuń stare markery i warstwy
+            if (marker) {
+                map.removeLayer(marker);
+                marker = null;
+            }
+            if (drawnLayer) {
+                map.removeLayer(drawnLayer);
+                drawnLayer = null;
+            }
+            if (searchMarker) {
+                map.removeLayer(searchMarker);
+                searchMarker = null;
+            }
+            drawControl.setDrawingOptions({
+                polyline: false,
+                polygon: false,
+                marker: false
+            });
+            map.removeControl(drawControl);
+            map.addControl(drawControl);
+        }
+
+        updateEditFieldsColor(loc.state);
+        updateEditRestoreVisibility(loc?.state);
+    };
+
+    document.getElementById('restoreBtn').onclick = function() {
+        const loc = locations[currentIdx];
+        if (!loc) return;
+
+        let changed = isChanged(loc)
+        if (loc.state !== newState) {
+            loc.state = changed ? modifiedState : confirmedState ;
+        } else {
+            loc.state = beginState;
+        }
+        onUserUpdate();
+        updateInfo();
+        updateEditFieldsColor(loc.state);
+        updateEditRestoreVisibility(loc.state);
+        saveBtn.style.background = '#F44336'; // czerwony
+        saveBtn.style.color = '#fff';
+    };
+
+
+    function buildAddressQuery() {
+        const street = document.getElementById('streetEdit').value.trim();
+        const house = document.getElementById('houseEdit').value.trim();
+        const city = document.getElementById('cityEdit').value.trim();
+        const postCode = document.getElementById('postCodeEdit').value.trim();
+
+        let streetHouse = [street, house].filter(Boolean).join(' ');
+        return [streetHouse, city].filter(Boolean).join(', ');
+    }
+
+
+    document.getElementById('toMapBtn').onclick = function() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', 'https://apigeocode.yanosik.pl/geocode/', true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Authorization', 'Basic ZWR5dG9yX3BvaTpFZGl0UG9pMjAyNSE=');
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        console.log(data);
+                        if (Array.isArray(data) && data.length > 0) {
+                            var first = data[0];
+                            var lat = first.latitude;
+                            var lng = first.longitude;
+                            if (lat && lng && map) {
+                                map.setView([lat, lng], zoom);
+                                // Usuń poprzedni zielony marker
+                                if (searchMarker) {
+                                    map.removeLayer(searchMarker);
+                                }
+                                // Dodaj nowy zielony marker
+                                searchMarker = L.marker([lat, lng], { icon: crossIcon }).addTo(map);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Błąd parsowania odpowiedzi:', e);
+                    }
+                } else {
+                    console.error('Błąd:', xhr.status, xhr.statusText);
+                }
+            }
+        };
+
+        var body = JSON.stringify({
+            query: buildAddressQuery(),
+            maxResultCount: 1,
+            suggest: true
+        });
+        xhr.send(body);
+    };
+
+    window.onload = function() {
+        checkAppVersion();
+        loadState();
+        if (inputFileName && inputFileName.trim() !== "") {
+            document.getElementById('inputFileName').value = inputFileName;
+            document.getElementById('poiData').style.display = '';
+            document.getElementById('navigationArrow').style.display = '';
+        } else {
+            document.getElementById('inputFileName').value = "Wczytaj plik";
+            document.getElementById('info').innerText = "";
+        }
+
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: 'Map data © OpenStreetMap contributors'
+        });
+        const satLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            maxZoom: 19,
+            attribution: 'Map data ©2025 Google'
+        });
+        const googleMapLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            maxZoom: 19,
+            attribution: 'Map data ©2025 Google'
+        });
+
+        map = L.map('map', {
+            center: [52, 19],
+            zoom: 6,
+            layers: [satLayer] // domyślnie satelita
+        });
+
+        const baseMaps = {
+            "Satelita": satLayer,
+            "OpenStreetMap": osmLayer,
+            "Google Map": googleMapLayer
+        };
+        L.control.layers(baseMaps).addTo(map);
+
+        // Nadpisanie domyślnego stylu rysowania na żółty
+        L.Draw.Polygon.prototype.options.shapeOptions = shapeOptions
+        L.Draw.Polyline.prototype.options.shapeOptions = shapeOptions
+        // Nadpisanie domyślnej ikony dla trybu rysowania markerów
+        L.Draw.Marker.prototype.options.icon = yellowIcon;
+
+        drawControl = new L.Control.Draw({
+            draw: {
+                polygon: true,
+                polyline: true,
+                rectangle: false,
+                circle: false,
+                marker: true,
+                circlemarker: false
+            },
+            edit: false
+        });
+        map.addControl(drawControl); // <-- dodaj kontrolkę do mapy
+
+        map.on(L.Draw.Event.CREATED, function (e) {
+            if (drawnLayer) map.removeLayer(drawnLayer);
+            drawnLayer = e.layer;
+            drawnLayer.addTo(map);
+            saveGeometry(drawnLayer.toGeoJSON());
+        });
+
+        map.on('draw:drawstart', function(e) {
+            console.log('Wybrano tryb rysowania:', e.layerType);
+            if (locations.length > 0 && locations[currentIdx].gpsposition) {
+                lastGeometryType = e.layerType;
+            }
+        });
+
+        map.on('zoomend', function() {
+            zoom = map.getZoom();
+            localStorage.setItem("zoom", zoom);
+        });
+
+        map.on('contextmenu', function(e) {
+            const lat = e.latlng.lat.toFixed(6);
+            const lng = e.latlng.lng.toFixed(6);
+            const coordsText = `${lat}, ${lng}`;
+            navigator.clipboard.writeText(coordsText)
+                .then(() => {
+                 })
+                .catch(() => showHtmlAlert(`Nie udało się skopiować: <b>${coordsText}</b>`));
+        });
+
+        L.Control.DeleteGeometry = L.Control.extend({
+            onAdd: function(map) {
+                const btn = L.DomUtil.create('button', '');
+                btn.innerText = 'Usuń geometrię (ctrl + q)';
+                btn.style.background = '#fff';
+                btn.style.border = '1px solid #888';
+                btn.style.padding = '6px 12px';
+                btn.style.cursor = 'pointer';
+                btn.onclick = function(e) {
+                    e.stopPropagation();
+                    deleteGeometry();
+                };
+                return btn;
+            },
+            onRemove: function(map) {}
+        });
+
+        L.control.deleteGeometry = function(opts) {
+            return new L.Control.DeleteGeometry(opts);
+        }
+
+        L.control.deleteGeometry({ position: 'topright' }).addTo(map);
+
+        if (locations.length > 0) {
+            if (currentIdx && currentIdx >= 0 && currentIdx < locations.length) {
+                showLocation(currentIdx);
+            } else {
+                showLocation(0);
+            }
+        }
+    };
+
+// Global keys: Enter -> Save, Left/Right -> navigate (not while typing)
+document.addEventListener('keydown', function(e) {
+    const tag = (document.activeElement && document.activeElement.tagName) || '';
+    const typing = tag === 'INPUT' || tag === 'TEXTAREA';
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const saveBtn = document.getElementById('saveBtn');
+        if (saveBtn) saveBtn.click();
+    }
+    if (!typing && e.key === 'ArrowRight') {
+        e.preventDefault();
+        const nextBtn = document.getElementById('nextBtn');
+        if (nextBtn) nextBtn.click();
+    }
+    if (!typing && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const prevBtn = document.getElementById('prevBtn');
+        if (prevBtn) prevBtn.click();
+    }
+});
+
+
+(function ensureRedPin(){
+  function apply() {
+    var a = document.querySelector('.leaflet-draw-toolbar a.leaflet-draw-draw-marker');
+    if (!a) return false;
+    var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='red' d='M12 22s7-7.21 7-12.1C19 6.02 15.87 3 12 3S5 6.02 5 9.9C5 14.79 12 22 12 22z'/><circle cx='12' cy='10' r='3.2' fill='white'/></svg>";
+    var url = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    a.style.backgroundImage = 'url(' + url + ')';
+    a.style.backgroundRepeat = 'no-repeat';
+    a.style.backgroundPosition = 'center center';
+    a.style.backgroundSize = '38px 38px';
+    a.style.width = '64px';
+    a.style.height = '64px';
+    a.style.lineHeight = '64px';
+    a.style.borderRadius = '12px';
+    a.style.backgroundColor = '#333';
+    a.style.border = '1px solid #555';
+    // ensure no pseudo content overlays
+    a.style.setProperty('--no-before', '1');
+    return true;
+  }
+  if (!apply()) {
+    var tries = 0;
+    var iv = setInterval(function(){
+      tries++;
+      if (apply() || tries > 20) clearInterval(iv);
+    }, 200);
+  }
+})();
+
+</script>

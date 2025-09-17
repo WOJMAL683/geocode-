@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Program Sprawdzający W.M</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #121212;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      color: #e0e0e0;
+    }
+    .container {
+      background: #1e1e1e;
+      margin-top: 40px;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+      width: 90%;
+      max-width: 750px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #ffffff;
+      font-weight: 600;
+    }
+    input[type="file"] {
+      display: block;
+      margin: 0 auto 25px auto;
+      padding: 10px 14px;
+      font-size: 15px;
+      background: #2a2a2a;
+      color: #f0f0f0;
+      border: 1px solid #444;
+      border-radius: 12px;
+      transition: border 0.3s, background 0.3s;
+    }
+    input[type="file"]:hover {
+      background: #333;
+      border-color: #666;
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 15px;
+      align-items: center;
+    }
+    textarea {
+      flex: 1;
+      min-height: 60px;
+      padding: 12px 14px;
+      font-size: 15px;
+      border: 1px solid #444;
+      border-radius: 12px;
+      resize: vertical;
+      overflow: auto;
+      line-height: 1.5;
+      background: #2a2a2a;
+      color: #f0f0f0;
+      transition: border 0.3s, box-shadow 0.3s;
+    }
+    textarea:focus {
+      border-color: #3498db;
+      box-shadow: 0 0 6px #3498db;
+      outline: none;
+    }
+    textarea[readonly] {
+      background: #252525;
+      color: #aaa;
+      font-weight: bold;
+    }
+    #counter {
+      text-align: right;
+      font-size: 14px;
+      color: #bbb;
+      margin-bottom: 20px;
+    }
+    #controls {
+      text-align: center;
+      margin-top: 20px;
+    }
+    button {
+      background: linear-gradient(135deg, #2c3e50, #34495e);
+      color: #fff;
+      border: none;
+      padding: 12px 20px;
+      margin: 6px;
+      border-radius: 25px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+      min-width: 110px;
+    }
+    button:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+    button:hover:enabled {
+      background: linear-gradient(135deg, #34495e, #3e5873);
+      transform: translateY(-2px);
+    }
+    #downloadBtn {
+      margin-top: 30px;
+      background: linear-gradient(135deg, #27ae60, #2ecc71);
+    }
+    #downloadBtn:hover:enabled {
+      background: linear-gradient(135deg, #2ecc71, #27ae60);
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Program Sprawdzający W.M</h2>
+
+    <input type="file" id="csvFile" accept=".csv">
+
+    <div class="row">
+      <textarea id="col2Box" placeholder="Kolumna 2" readonly></textarea>
+      <textarea id="col8Box" placeholder="Kolumna 8"></textarea>
+    </div>
+
+    <div id="counter">–</div>
+
+    <div id="controls">
+      <button id="prevBtn">← Wstecz</button>
+      <button id="nextBtn">Dalej →</button>
+      <br>
+      <button id="downloadBtn" disabled>Pobierz zmodyfikowany CSV</button>
+    </div>
+  </div>
+
+  <script>
+    let data = [];
+    let currentIndex = 0;
+    let separator = ",";
+
+    document.getElementById("csvFile").addEventListener("change", handleFile);
+    document.getElementById("prevBtn").addEventListener("click", goPrev);
+    document.getElementById("nextBtn").addEventListener("click", goNext);
+
+    function handleFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        const text = e.target.result;
+        parseCSV(text);
+        if (data.length > 0) {
+          currentIndex = data.findIndex(row => row.col2.trim() !== "" && row.col8.trim() !== "");
+          if (currentIndex === -1) currentIndex = 0;
+          showRow();
+          document.getElementById("downloadBtn").disabled = false;
+        } else {
+          alert("Nie znaleziono danych w pliku CSV.");
+        }
+      };
+      reader.readAsText(file, "UTF-8");
+    }
+
+    function detectSeparator(line) {
+      if (line.includes(";")) return ";";
+      return ",";
+    }
+
+    function parseCSV(text) {
+      const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+      if (lines.length === 0) return;
+
+      separator = detectSeparator(lines[0]);
+
+      data = lines.map(line => {
+        const cols = line.split(separator);
+        return {
+          all: cols,
+          col2: cols[1] || "",
+          col8: cols[7] || ""
+        };
+      });
+    }
+
+    function showRow() {
+      if (currentIndex < 0) currentIndex = 0;
+      if (currentIndex >= data.length) {
+        alert("Koniec pliku!");
+        currentIndex = data.length - 1;
+        return;
+      }
+      document.getElementById("col2Box").value = data[currentIndex].col2;
+      document.getElementById("col8Box").value = data[currentIndex].col8;
+      document.getElementById("col8Box").focus();
+      document.getElementById("counter").innerText =
+        (currentIndex + 1) + " z " + data.length;
+    }
+
+    function goPrev() {
+      saveCurrent();
+      currentIndex--;
+      if (currentIndex < 0) currentIndex = 0;
+      showRow();
+    }
+
+    function goNext() {
+      saveCurrent();
+      currentIndex++;
+      if (currentIndex >= data.length) {
+        alert("Koniec pliku!");
+        currentIndex = data.length - 1;
+      }
+      showRow();
+    }
+
+    function saveCurrent() {
+      if (currentIndex >= 0 && currentIndex < data.length) {
+        let val = document.getElementById("col8Box").value;
+        data[currentIndex].col8 = val;
+        data[currentIndex].all[7] = val;
+      }
+    }
+
+    document.getElementById("col8Box").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        goNext();
+      }
+    });
+
+    document.getElementById("downloadBtn").addEventListener("click", function() {
+      saveCurrent();
+      const rows = data.map(row => row.all.join(separator)).join("\n");
+      const blob = new Blob([rows], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "edited.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+  </script>
+</body>
+</html>
